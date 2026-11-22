@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบคำนวณวัตถุดิบเครื่องดื่มบรรจุขวด | Cafe Production Calc</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Prompt & Sarabun -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        sarabun: ['Sarabun', 'sans-serif'],
+                    },
+                    colors: {
+                        cafe: {
+                            50: '#fdf8f6',
+                            100: '#f2e8e5',
+                            200: '#eaddd7',
+                            300: '#e0cec7',
+                            400: '#d2bab0',
+                            500: '#bfa094',
+                            600: '#a18072',
+                            700: '#846358',
+                            800: '#4a3525', // Espresso Dark
+                            900: '#2c1e14', // Deep Roast
+                        },
+                        cream: {
+                            50: '#fffdfa',
+                            100: '#fcf6ec',
+                            200: '#f7ead5',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #fdf8f6;
+            color: #2c1e14;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f2e8e5;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #bfa094;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #846358;
+        }
+
+        /* Hide number input arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* Print Styles for A4 Manager Report */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 12mm 15mm;
+            }
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                font-family: 'Sarabun', sans-serif !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .print-break-inside {
+                break-inside: avoid;
+            }
+        }
+        .print-only {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- ==================== HEADER / NAVBAR (NO PRINT) ==================== -->
+    <header class="no-print bg-cafe-900 text-cream-50 shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between py-3 gap-3">
+                <!-- Brand -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 text-xl">
+                            <i class="fa-solid fa-bottle-droplet"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">ระบบคำนวณวัตถุดิบเมนูขวด</h1>
+                            <p class="text-xs text-cafe-300">Bottle Beverage Production & Inventory Calc</p>
+                        </div>
+                    </div>
+                    <!-- Connection Status Badge (Mobile) -->
+                    <div id="statusBadgeMobile" class="md:hidden flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-cafe-800 border border-cafe-700">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="statusDotMobile"></span>
+                        <span id="statusTextMobile">โหมดออฟไลน์</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs & Status -->
+                <div class="flex items-center justify-between md:justify-end gap-2 sm:gap-4">
+                    <nav class="flex bg-cafe-800/80 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
+                        <button onclick="switchTab('calculator')" id="tab-btn-calculator" class="tab-btn flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all bg-amber-600 text-white shadow">
+                            <i class="fa-solid fa-calculator"></i>
+                            <span>คำนวณวัตถุดิบ</span>
+                        </button>
+                        <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all text-cafe-200 hover:text-white hover:bg-cafe-700/50">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>ประวัติย้อนหลัง</span>
+                        </button>
+                        <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all text-cafe-200 hover:text-white hover:bg-cafe-700/50">
+                            <i class="fa-solid fa-gear"></i>
+                            <span>ตั้งค่า Sheet / GitHub</span>
+                        </button>
+                    </nav>
+
+                    <!-- Connection Status Badge (Desktop) -->
+                    <div id="statusBadgeDesktop" class="hidden md:flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-cafe-800 border border-cafe-700 whitespace-nowrap" title="สถานะการเชื่อมต่อ Google Sheets">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400" id="statusDotDesktop"></span>
+                        <span id="statusTextDesktop">Local Storage (ทดสอบ)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== NOTIFICATION TOAST (NO PRINT) ==================== -->
+    <div id="toastContainer" class="no-print fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- ==================== MAIN CONTENT (NO PRINT) ==================== -->
+    <main class="no-print flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ==================== TAB 1: CALCULATOR ==================== -->
+        <section id="tab-calculator" class="space-y-6">
+            
+            <!-- Top Action Bar -->
+            <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-cafe-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-cafe-900 flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-amber-600"></i>
+                        ระบุจำนวนขวด / รอบการผลิต
+                    </h2>
+                    <p class="text-sm text-cafe-600">กรอกจำนวนที่ต้องการผลิต ระบบจะคำนวณวัตถุดิบรวมให้อัตโนมัติทันที</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="resetAllQuantities()" class="px-4 py-2.5 rounded-xl border border-cafe-300 text-cafe-700 hover:bg-cafe-100 text-sm font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        ล้างค่าทั้งหมด
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid Layout: Menu Cards (Left 7 cols) + Summary Panel (Right 5 cols) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- Left Column: Beverage Menu Cards -->
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="flex items-center justify-between px-1">
+                        <span class="text-sm font-semibold text-cafe-700">รายการเมนูทั้งหมด (13 รายการ)</span>
+                        <span class="text-xs text-cafe-500">* คลิกที่การ์ดเพื่อดูสูตรต่อ 1 หน่วย</span>
+                    </div>
+                    
+                    <div id="menuCardsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <!-- Cards will be dynamically injected here -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Real-Time Ingredient Summary & Save/Print -->
+                <div class="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
+                    <div class="bg-white rounded-2xl shadow-md border border-cafe-200 overflow-hidden">
+                        <!-- Summary Header -->
+                        <div class="bg-cafe-800 text-white px-5 py-4 flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <i class="fa-solid fa-scale-balanced text-amber-400 text-lg"></i>
+                                <div>
+                                    <h3 class="font-bold text-base">สรุปยอดเบิกวัตถุดิบรวม</h3>
+                                    <p class="text-xs text-cafe-300">คำนวณตามสูตรมาตรฐานแบบ Real-time</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs text-cafe-300 block">ยอดผลิตรวม</span>
+                                <span id="totalBottlesBadge" class="text-lg font-bold text-amber-400">0 หน่วย</span>
+                            </div>
+                        </div>
+
+                        <!-- Ingredients Breakdown List -->
+                        <div class="p-5 max-h-[45vh] overflow-y-auto space-y-4" id="ingredientSummaryContainer">
+                            <div class="text-center py-8 text-cafe-400">
+                                <i class="fa-solid fa-mug-hot text-4xl mb-2 opacity-40"></i>
+                                <p class="text-sm">ยังไม่มีรายการผลิต</p>
+                                <p class="text-xs mt-1">กรุณาเพิ่มจำนวนขวดที่เมนูด้านซ้าย</p>
+                            </div>
+                        </div>
+
+                        <!-- Form Inputs for Saving & Reporting -->
+                        <div class="bg-cream-100/80 border-t border-cafe-200 p-5 space-y-3.5">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-cafe-800 mb-1">ชื่อผู้บันทึก / บาริสต้า <span class="text-red-500">*</span></label>
+                                    <input type="text" id="recorderName" placeholder="เช่น น้องเอ, กะเช้า" class="w-full px-3 py-2 rounded-xl border border-cafe-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-cafe-800 mb-1">รอบการผลิต / วันที่</label>
+                                    <input type="text" id="batchNote" placeholder="เช่น รอบเช้า, สต็อกวันเสาร์" class="w-full px-3 py-2 rounded-xl border border-cafe-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                                <button onclick="saveProductionRecord()" id="btnSaveRecord" class="w-full py-3 px-4 rounded-xl bg-cafe-800 hover:bg-cafe-900 text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    <span>บันทึกข้อมูลลงฐานข้อมูล</span>
+                                </button>
+                                <button onclick="prepareAndPrintCurrent()" class="w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fa-solid fa-print"></i>
+                                    <span>พิมพ์รายงานส่งผู้จัดการ</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==================== TAB 2: HISTORY ==================== -->
+        <section id="tab-history" class="hidden space-y-5">
+            <!-- History Header & Filters -->
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-cafe-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-cafe-900 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-amber-600"></i>
+                        ประวัติการคำนวณและเบิกวัตถุดิบย้อนหลัง
+                    </h2>
+                    <p class="text-sm text-cafe-600">เรียกดูข้อมูลย้อนหลังจากฐานข้อมูล Google Sheets และหน่วยความจำในเครื่อง</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <div class="relative flex-1 sm:flex-none">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-cafe-400 text-sm"></i>
+                        <input type="text" id="historySearchInput" onkeyup="filterHistory()" placeholder="ค้นหาวันที่, ชื่อผู้บันทึก..." class="pl-9 pr-3 py-2 rounded-xl border border-cafe-300 text-sm w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    </div>
+                    <button onclick="fetchHistoryData()" id="btnRefreshHistory" class="px-4 py-2 rounded-xl bg-cafe-800 hover:bg-cafe-900 text-white text-sm font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-rotate" id="refreshIcon"></i>
+                        <span>โหลดข้อมูลล่าสุด</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- History List Table / Cards -->
+            <div class="bg-white rounded-2xl shadow-sm border border-cafe-200 overflow-hidden">
+                <div id="historyLoadingState" class="hidden py-12 text-center">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-amber-600 mb-2"></i>
+                    <p class="text-sm text-cafe-600">กำลังโหลดข้อมูลจากฐานข้อมูล...</p>
+                </div>
+
+                <div id="historyEmptyState" class="hidden py-12 text-center text-cafe-400">
+                    <i class="fa-solid fa-folder-open text-4xl mb-2 opacity-50"></i>
+                    <p class="text-base font-medium text-cafe-700">ไม่พบข้อมูลประวัติย้อนหลัง</p>
+                    <p class="text-xs mt-1">ลองบันทึกข้อมูลการคำนวณในหน้าแรก หรือตรวจสอบการตั้งค่า Google Sheets URL</p>
+                </div>
+
+                <div class="overflow-x-auto" id="historyTableWrapper">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-cafe-100/80 border-b border-cafe-200 text-xs font-semibold text-cafe-800 uppercase">
+                                <th class="py-3.5 px-4">วันที่ / เวลา</th>
+                                <th class="py-3.5 px-4">ผู้บันทึก</th>
+                                <th class="py-3.5 px-4">รอบ / หมายเหตุ</th>
+                                <th class="py-3.5 px-4 text-center">ยอดผลิตรวม</th>
+                                <th class="py-3.5 px-4">แหล่งข้อมูล</th>
+                                <th class="py-3.5 px-4 text-right">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="divide-y divide-cafe-100 text-sm">
+                            <!-- Rows injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 3: SETTINGS & GITHUB/SHEETS GUIDE ==================== -->
+        <section id="tab-settings" class="hidden space-y-6">
+            
+            <!-- Google Sheets URL Configuration Card -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-cafe-200 space-y-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-table"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-cafe-900">เชื่อมต่อฐานข้อมูล Google Sheets</h2>
+                        <p class="text-sm text-cafe-600">วางลิงก์ Web App URL ที่ได้จากการ Deploy Google Apps Script เพื่อบันทึกและดึงข้อมูลข้ามอุปกรณ์ได้แบบ Real-time</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-2">
+                    <label class="block text-sm font-semibold text-cafe-800">Google Apps Script Web App URL</label>
+                    <div class="flex flex-col sm:flex-row gap-2.5">
+                        <input type="url" id="googleScriptUrlInput" placeholder="https://script.google.com/macros/s/AKfycbx.../exec" class="flex-1 px-4 py-2.5 rounded-xl border border-cafe-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                        <button onclick="saveGoogleScriptUrl()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition flex items-center justify-center gap-2 shrink-0">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span>บันทึกการตั้งค่า</span>
+                        </button>
+                        <button onclick="clearGoogleScriptUrl()" class="px-4 py-2.5 rounded-xl border border-cafe-300 hover:bg-cafe-100 text-cafe-700 text-sm font-medium transition shrink-0">
+                            ล้าง URL
+                        </button>
+                    </div>
+                    <p class="text-xs text-cafe-500">* หากไม่ได้ใส่ URL ระบบจะทำงานในโหมด <strong>Local Storage</strong> (เก็บข้อมูลในเบราว์เซอร์เครื่องนี้) ให้ใช้งานได้ทันที</p>
+                </div>
+            </div>
+
+            <!-- Step-by-step Setup Guide & Apps Script Code -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Google Apps Script Setup -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-cafe-200 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-base text-cafe-900 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-cafe-800 text-white text-xs flex items-center justify-center">1</span>
+                            โค้ดสำหรับ Google Apps Script (ฐานข้อมูล)
+                        </h3>
+                        <button onclick="copyAppsScriptCode()" class="px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-regular fa-copy"></i>
+                            <span>คัดลอกโค้ด</span>
+                        </button>
+                    </div>
+
+                    <ol class="text-xs text-cafe-700 space-y-1.5 list-decimal list-inside bg-cream-100 p-3.5 rounded-xl border border-cafe-200">
+                        <li>สร้างไฟล์ <strong>Google Sheets</strong> ใหม่ ตั้งชื่อชีตด้านล่างว่า <code class="bg-white px-1.5 py-0.5 rounded border">Records</code></li>
+                        <li>ไปที่เมนูด้านบนเลือก <strong>ส่วนขยาย (Extensions) &gt; Apps Script</strong></li>
+                        <li>ลบโค้ดเดิมทั้งหมด แล้ววางโค้ดด้านล่างนี้ลงไป กดปุ่ม <strong>บันทึก (Save)</strong></li>
+                        <li>กดปุ่ม <strong>ทำให้ใช้งานได้ (Deploy) &gt; การทำให้ใช้งานได้รายการใหม่ (New deployment)</strong></li>
+                        <li>เลือกประเภทเป็น <strong>เว็บแอป (Web app)</strong> &gt; ผู้มีสิทธิ์เข้าถึงเลือก <strong>ทุกคน (Anyone)</strong> &gt; กด Deploy</li>
+                        <li>คัดลอก <strong>Web app URL</strong> มาวางในช่องด้านบนสุดของหน้านี้</li>
+                    </ol>
+
+                    <div class="relative">
+                        <textarea id="appsScriptCodeBox" readonly rows="12" class="w-full p-3.5 rounded-xl bg-cafe-900 text-emerald-300 font-mono text-xs leading-relaxed focus:outline-none">function doGet(e) {
+  var sheet = getOrCreateSheet();
+  var data = sheet.getDataRange().getValues();
+  var records = [];
+  for (var i = 1; i < data.length; i++) {
+    if (!data[i][0]) continue;
+    records.push({
+      id: data[i][0],
+      timestamp: data[i][1],
+      recorder: data[i][2],
+      note: data[i][3],
+      totalBottles: Number(data[i][4]),
+      menusJson: data[i][5],
+      ingredientsJson: data[i][6],
+      source: 'Google Sheets'
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: records.reverse() }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    var sheet = getOrCreateSheet();
+    var payload = JSON.parse(e.postData.contents);
+    sheet.appendRow([
+      payload.id,
+      payload.timestamp,
+      payload.recorder,
+      payload.note,
+      payload.totalBottles,
+      payload.menusJson,
+      payload.ingredientsJson
+    ]);
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function getOrCreateSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Records');
+  if (!sheet) {
+    sheet = ss.insertSheet('Records');
+    sheet.appendRow(['ID', 'วันที่เวลา', 'ผู้บันทึก', 'หมายเหตุ/รอบ', 'ยอดผลิตรวม', 'ข้อมูลเมนู (JSON)', 'ข้อมูลวัตถุดิบ (JSON)']);
+  }
+  return sheet;
+}</textarea>
+                    </div>
+                </div>
+
+                <!-- GitHub Pages Deployment Guide -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-cafe-200 space-y-4">
+                    <h3 class="font-bold text-base text-cafe-900 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-cafe-800 text-white text-xs flex items-center justify-center">2</span>
+                        วิธีนำเว็บไซต์ขึ้น GitHub Pages (ใช้งานฟรีตลอดชีพ)
+                    </h3>
+
+                    <div class="space-y-3 text-sm text-cafe-700">
+                        <div class="p-3.5 rounded-xl bg-cafe-50 border border-cafe-200 flex gap-3">
+                            <i class="fa-brands fa-github text-2xl text-cafe-900 mt-0.5"></i>
+                            <div>
+                                <p class="font-semibold text-cafe-900">ขั้นตอนที่ 1: สร้าง Repository บน GitHub</p>
+                                <p class="text-xs text-cafe-600 mt-0.5">ล็อกอินเข้าเว็บ github.com กดปุ่ม <strong>New</strong> ตั้งชื่อโปรเจกต์ เช่น <code class="bg-white px-1 rounded border">bottle-cafe-calc</code> เลือกเป็น Public แล้วกด Create repository</p>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 rounded-xl bg-cafe-50 border border-cafe-200 flex gap-3">
+                            <i class="fa-solid fa-file-code text-2xl text-amber-600 mt-0.5"></i>
+                            <div>
+                                <p class="font-semibold text-cafe-900">ขั้นตอนที่ 2: อัปโหลดไฟล์ index.html</p>
+                                <p class="text-xs text-cafe-600 mt-0.5">บันทึกโค้ดหน้าเว็บนี้เป็นชื่อไฟล์ <strong>index.html</strong> จากนั้นกด <strong>Add file &gt; Upload files</strong> บน GitHub ลากไฟล์ลงไปแล้วกด Commit changes</p>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 rounded-xl bg-cafe-50 border border-cafe-200 flex gap-3">
+                            <i class="fa-solid fa-globe text-2xl text-emerald-600 mt-0.5"></i>
+                            <div>
+                                <p class="font-semibold text-cafe-900">ขั้นตอนที่ 3: เปิดใช้งาน GitHub Pages</p>
+                                <p class="text-xs text-cafe-600 mt-0.5">เข้าไปที่แท็บ <strong>Settings &gt; Pages</strong> เลือก Branch เป็น <strong>main</strong> แล้วกด Save รอประมาณ 1 นาที จะได้ลิงก์เว็บไซต์สำหรับเปิดใช้งานบนมือถือและคอมพิวเตอร์ของร้านทันที</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==================== HISTORY DETAIL MODAL (NO PRINT) ==================== -->
+    <div id="detailModal" class="no-print hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fadeIn">
+            <div class="bg-cafe-900 text-white px-6 py-4 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-lg">รายละเอียดรายการผลิตย้อนหลัง</h3>
+                    <p id="modalSubtitle" class="text-xs text-cafe-300">-</p>
+                </div>
+                <button onclick="closeDetailModal()" class="w-8 h-8 rounded-full bg-cafe-800 hover:bg-cafe-700 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-5 flex-1" id="modalBodyContent">
+                <!-- Injected dynamically -->
+            </div>
+
+            <div class="bg-cafe-50 border-t border-cafe-200 px-6 py-3.5 flex items-center justify-end gap-3">
+                <button onclick="closeDetailModal()" class="px-4 py-2 rounded-xl border border-cafe-300 text-cafe-700 text-sm font-medium hover:bg-cafe-100">
+                    ปิดหน้าต่าง
+                </button>
+                <button id="modalPrintBtn" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-print"></i>
+                    <span>พิมพ์รายงานใบนี้</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PRINTABLE A4 MANAGER REPORT (PRINT ONLY) ==================== -->
+    <div id="printableReportArea" class="print-only w-full bg-white text-black">
+        <!-- Report Header -->
+        <div class="border-b-2 border-gray-800 pb-4 mb-5 flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">ใบสรุปการผลิตและเบิกวัตถุดิบเมนูบรรจุขวด</h1>
+                <p class="text-sm text-gray-600 mt-0.5">Bottle Beverage Production & Ingredient Requisition Report</p>
+            </div>
+            <div class="text-right text-sm">
+                <p><span class="font-bold">วันที่พิมพ์รายงาน:</span> <span id="printDate">-</span></p>
+                <p><span class="font-bold">เลขที่อ้างอิง:</span> <span id="printDocId">-</span></p>
+            </div>
+        </div>
+
+        <!-- Meta Info Box -->
+        <div class="grid grid-cols-3 gap-4 bg-gray-100 p-3.5 rounded-lg border border-gray-300 mb-6 text-sm">
+            <div>
+                <span class="text-gray-600 block text-xs">ผู้บันทึก / บาริสต้า</span>
+                <span class="font-bold text-base" id="printRecorder">-</span>
+            </div>
+            <div>
+                <span class="text-gray-600 block text-xs">รอบการผลิต / หมายเหตุ</span>
+                <span class="font-bold text-base" id="printNote">-</span>
+            </div>
+            <div class="text-right">
+                <span class="text-gray-600 block text-xs">ยอดผลิตรวมทั้งหมด</span>
+                <span class="font-bold text-base" id="printTotalBottles">0 หน่วย</span>
+            </div>
+        </div>
+
+        <!-- Section 1: Menus Produced Table -->
+        <div class="mb-6 print-break-inside">
+            <h2 class="text-base font-bold text-gray-900 mb-2 border-l-4 border-gray-800 pl-2">1. รายการเครื่องดื่มที่สั่งผลิต (Production Summary)</h2>
+            <table class="w-full border-collapse border border-gray-400 text-sm">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border border-gray-400 py-2 px-3 text-center w-12">ลำดับ</th>
+                        <th class="border border-gray-400 py-2 px-3 text-left">ชื่อเมนูเครื่องดื่ม</th>
+                        <th class="border border-gray-400 py-2 px-3 text-right w-32">จำนวนที่ผลิต</th>
+                        <th class="border border-gray-400 py-2 px-3 text-center w-24">หน่วย</th>
+                    </tr>
+                </thead>
+                <tbody id="printMenusTbody">
+                    <!-- Injected before print -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 2: Total Ingredients Required Table -->
+        <div class="mb-8 print-break-inside">
+            <h2 class="text-base font-bold text-gray-900 mb-2 border-l-4 border-gray-800 pl-2">2. สรุปปริมาณวัตถุดิบที่ต้องเบิกใช้ทั้งหมด (Total Ingredients Required)</h2>
+            <table class="w-full border-collapse border border-gray-400 text-sm">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border border-gray-400 py-2 px-3 text-center w-12">ลำดับ</th>
+                        <th class="border border-gray-400 py-2 px-3 text-left">หมวดหมู่</th>
+                        <th class="border border-gray-400 py-2 px-3 text-left">รายการวัตถุดิบ</th>
+                        <th class="border border-gray-400 py-2 px-3 text-right w-36">ปริมาณสุทธิ</th>
+                        <th class="border border-gray-400 py-2 px-3 text-center w-20">หน่วย</th>
+                        <th class="border border-gray-400 py-2 px-3 text-center w-24">เช็คเบิก</th>
+                    </tr>
+                </thead>
+                <tbody id="printIngredientsTbody">
+                    <!-- Injected before print -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Signature Section -->
+        <div class="grid grid-cols-2 gap-12 pt-8 mt-8 border-t border-gray-300 text-sm print-break-inside">
+            <div class="text-center">
+                <div class="border-b border-dotted border-gray-600 w-3/4 mx-auto h-10 mb-2"></div>
+                <p class="font-bold">ผู้จัดทำ / ผู้เบิกวัตถุดิบ</p>
+                <p class="text-xs text-gray-500 mt-0.5">(<span id="printSignRecorder">....................................................</span>)</p>
+                <p class="text-xs text-gray-500 mt-0.5">วันที่ ......./......./............</p>
+            </div>
+            <div class="text-center">
+                <div class="border-b border-dotted border-gray-600 w-3/4 mx-auto h-10 mb-2"></div>
+                <p class="font-bold">ผู้จัดการ / ผู้อนุมัติตรวจสอบ</p>
+                <p class="text-xs text-gray-500 mt-0.5">(....................................................)</p>
+                <p class="text-xs text-gray-500 mt-0.5">วันที่ ......./......./............</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== JAVASCRIPT APPLICATION LOGIC ==================== -->
+    <script>
+        // 1. MASTER DATA: 13 BEVERAGE RECIPES (EXACT SPECIFICATIONS)
+        const RECIPES = [
+            {
+                id: 'espresso_220',
+                name: 'เอสเปรสโซ่แบบขวด 220ml',
+                unitLabel: 'ขวด',
+                category: 'กาแฟ',
+                icon: 'fa-mug-hot',
+                color: 'bg-amber-900 text-amber-100',
+                ingredients: [
+                    { name: 'นมจืด', amount: 45.39, unit: 'กรัม', group: 'นมและไซรัป' },
+                    { name: 'กาแฟ', amount: 21.26, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' },
+                    { name: 'นมข้นจืด', amount: 57.17, unit: 'กรัม', group: 'นมและไซรัป' },
+                    { name: 'นมข้นหวาน', amount: 55.03, unit: 'กรัม', group: 'นมและไซรัป' }
+                ]
+            },
+            {
+                id: 'earl_grey_220',
+                name: 'ชานมเอิร์ลเกรย์ แบบขวด 220ml',
+                unitLabel: 'ขวด',
+                category: 'ชา',
+                icon: 'fa-leaf',
+                color: 'bg-amber-700 text-amber-50',
+                ingredients: [
+                    { name: 'ชาดำ', amount: 7, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' },
+                    { name: 'ผงครีม', amount: 56, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' }
+                ]
+            },
+            {
+                id: 'thai_tea_220',
+                name: 'ชาไทย แบบขวด 220ml',
+                unitLabel: 'ขวด',
+                category: 'ชา',
+                icon: 'fa-mug-saucer',
+                color: 'bg-orange-600 text-white',
+                ingredients: [
+                    { name: 'ผงชาไทย', amount: 25, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' },
+                    { name: 'นมข้นจืด', amount: 57.17, unit: 'กรัม', group: 'นมและไซรัป' },
+                    { name: 'นมข้นหวาน', amount: 55.03, unit: 'กรัม', group: 'นมและไซรัป' }
+                ]
+            },
+            {
+                id: 'strawberry_milk',
+                name: 'นมสดสตอเบอร์รี่',
+                unitLabel: 'ขวด',
+                category: 'นม/ผลไม้',
+                icon: 'fa-glass-water',
+                color: 'bg-rose-500 text-white',
+                ingredients: [
+                    { name: 'นมจืด', amount: 201.75, unit: 'กรัม', group: 'นมและไซรัป' },
+                    { name: 'น้ำผลไม้เข้มข้นสตอเบอร์รี่', amount: 43, unit: 'กรัม', group: 'ผลไม้ / น้ำผลไม้' }
+                ]
+            },
+            {
+                id: 'americano',
+                name: 'อเมริกาโน่',
+                unitLabel: 'ขวด',
+                category: 'กาแฟ',
+                icon: 'fa-mug-hot',
+                color: 'bg-stone-800 text-stone-100',
+                ingredients: [
+                    { name: 'กาแฟ', amount: 21.26, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' }
+                ]
+            },
+            {
+                id: 'latte',
+                name: 'ลาเต้',
+                unitLabel: 'ขวด',
+                category: 'กาแฟ',
+                icon: 'fa-mug-hot',
+                color: 'bg-amber-600 text-white',
+                ingredients: [
+                    { name: 'นมจืด', amount: 175.53, unit: 'กรัม', group: 'นมและไซรัป' },
+                    { name: 'กาแฟ', amount: 21.26, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' }
+                ]
+            },
+            {
+                id: 'lemon_tea',
+                name: 'ชามะนาว',
+                unitLabel: 'ขวด',
+                category: 'ชา/ผลไม้',
+                icon: 'fa-lemon',
+                color: 'bg-yellow-500 text-yellow-950',
+                ingredients: [
+                    { name: 'เลม่อนสด', amount: 8, unit: 'กรัม', group: 'ผลไม้ / น้ำผลไม้' },
+                    { name: 'ชาไทย', amount: 20, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' },
+                    { name: 'ผงมะนาว', amount: 4, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' }
+                ]
+            },
+            {
+                id: 'dark_cocoa',
+                name: 'ดาร์กโกโก้',
+                unitLabel: 'ขวด',
+                category: 'โกโก้/มัทฉะ',
+                icon: 'fa-cookie-bite',
+                color: 'bg-amber-950 text-amber-100',
+                ingredients: [
+                    { name: 'นมข้นจืด', amount: 83, unit: 'กรัม', group: 'นมและไซรัป' },
+                    { name: 'นมข้นหวาน', amount: 33, unit: 'กรัม', group: 'นมและไซรัป' },
+                    { name: 'ผงโกโก้', amount: 16, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' }
+                ]
+            },
+            {
+                id: 'matcha_latte',
+                name: 'มัทฉะลาเต้',
+                unitLabel: 'ขวด',
+                category: 'โกโก้/มัทฉะ',
+                icon: 'fa-seedling',
+                color: 'bg-emerald-700 text-white',
+                ingredients: [
+                    { name: 'ผงมัทฉะ', amount: 10, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' },
+                    { name: 'นมจืด', amount: 50, unit: 'กรัม', group: 'นมและไซรัป' },
+                    { name: 'นมข้นจืด', amount: 83, unit: 'กรัม', group: 'นมและไซรัป' }
+                ]
+            },
+            {
+                id: 'iced_honey_lemon',
+                name: 'น้ำผึ้งมะนาวเย็น',
+                unitLabel: 'ขวด',
+                category: 'ผลไม้',
+                icon: 'fa-droplet',
+                color: 'bg-amber-400 text-amber-950',
+                ingredients: [
+                    { name: 'เลม่อนสด', amount: 75, unit: 'กรัม', group: 'ผลไม้ / น้ำผลไม้' },
+                    { name: 'น้ำผึ้ง', amount: 60, unit: 'กรัม', group: 'นมและไซรัป' }
+                ]
+            },
+            {
+                id: 'orange_juice',
+                name: 'น้ำส้ม',
+                unitLabel: 'ขวด',
+                category: 'ผลไม้',
+                icon: 'fa-whiskey-glass',
+                color: 'bg-orange-500 text-white',
+                ingredients: [
+                    { name: 'น้ำส้ม', amount: 250, unit: 'ml', group: 'ผลไม้ / น้ำผลไม้' }
+                ]
+            },
+            {
+                id: 'flush_mm1',
+                name: 'เคลียร์หัว mm1',
+                unitLabel: 'ครั้ง',
+                category: 'บำรุงรักษาเครื่อง',
+                icon: 'fa-gears',
+                color: 'bg-slate-600 text-white',
+                ingredients: [
+                    { name: 'กาแฟ', amount: 5, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' }
+                ]
+            },
+            {
+                id: 'flush_mm2',
+                name: 'เคลียร์หัว mm2',
+                unitLabel: 'ครั้ง',
+                category: 'บำรุงรักษาเครื่อง',
+                icon: 'fa-gears',
+                color: 'bg-slate-700 text-white',
+                ingredients: [
+                    { name: 'กาแฟ', amount: 5, unit: 'กรัม', group: 'เมล็ดกาแฟ / ใบชา / ผง' }
+                ]
+            }
+        ];
+
+        // 2. APPLICATION STATE
+        let quantities = {}; // { recipeId: number }
+        let historyRecords = [];
+        const STORAGE_KEY_RECORDS = 'cafe_bottle_calc_records_v1';
+        const STORAGE_KEY_URL = 'cafe_bottle_calc_gsheet_url_v1';
+
+        // 3. INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize quantities to 0
+            RECIPES.forEach(r => quantities[r.id] = 0);
+            
+            // Load saved Google Script URL
+            const savedUrl = localStorage.getItem(STORAGE_KEY_URL) || '';
+            document.getElementById('googleScriptUrlInput').value = savedUrl;
+            updateConnectionStatusUI(savedUrl);
+
+            // Render Menu Cards
+            renderMenuCards();
+            calculateAndRenderSummary();
+        });
+
+        // 4. TAB NAVIGATION
+        function switchTab(tabName) {
+            ['calculator', 'history', 'settings'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                const btn = document.getElementById(`tab-btn-${t}`);
+                btn.classList.remove('bg-amber-600', 'text-white', 'shadow');
+                btn.classList.add('text-cafe-200', 'hover:text-white', 'hover:bg-cafe-700/50');
+            });
+
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            activeBtn.classList.remove('text-cafe-200', 'hover:text-white', 'hover:bg-cafe-700/50');
+            activeBtn.classList.add('bg-amber-600', 'text-white', 'shadow');
+
+            if (tabName === 'history') {
+                fetchHistoryData();
+            }
+        }
+
+        // 5. RENDER MENU CARDS
+        function renderMenuCards() {
+            const container = document.getElementById('menuCardsContainer');
+            container.innerHTML = '';
+
+            RECIPES.forEach(recipe => {
+                const qty = quantities[recipe.id] || 0;
+                const isActive = qty > 0;
+
+                // Format recipe subtitle
+                const recipeText = recipe.ingredients
+                    .map(ing => `${ing.name} ${ing.amount}${ing.unit === 'ml' ? 'ml' : 'ก.'}`)
+                    .join(' • ');
+
+                const card = document.createElement('div');
+                card.id = `card-${recipe.id}`;
+                card.className = `rounded-2xl p-4 transition-all duration-200 border ${
+                    isActive 
+                    ? 'bg-amber-50/80 border-amber-500 shadow-md ring-1 ring-amber-500/30' 
+                    : 'bg-white border-cafe-200 hover:border-cafe-300 shadow-xs'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2.5 mb-3">
+                        <div class="flex items-start gap-2.5">
+                            <div class="w-9 h-9 rounded-xl ${recipe.color} flex items-center justify-center text-sm shrink-0 mt-0.5 shadow-xs">
+                                <i class="fa-solid ${recipe.icon}"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm sm:text-base text-cafe-900 leading-snug">${recipe.name}</h4>
+                                <span class="inline-block text-[11px] font-medium text-cafe-500 bg-cafe-100 px-2 py-0.5 rounded-md mt-0.5">${recipe.category}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-cafe-600 bg-cafe-50/80 rounded-lg p-2 mb-3 border border-cafe-100 leading-relaxed">
+                        <span class="font-semibold text-cafe-700">สูตร/1 ${recipe.unitLabel}:</span> ${recipeText}
+                    </p>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-xs font-medium text-cafe-600">จำนวน (${recipe.unitLabel}):</span>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="updateQuantity('${recipe.id}', -1)" class="w-9 h-9 rounded-xl bg-cafe-100 hover:bg-cafe-200 active:scale-95 text-cafe-800 font-bold flex items-center justify-center transition cursor-pointer" aria-label="ลดจำนวน">
+                                <i class="fa-solid fa-minus text-xs"></i>
+                            </button>
+                            <input type="number" min="0" step="1" id="input-${recipe.id}" value="${qty}" 
+                                onchange="setQuantityDirect('${recipe.id}', this.value)"
+                                onkeyup="setQuantityDirect('${recipe.id}', this.value)"
+                                class="w-16 h-9 text-center font-bold text-base rounded-xl border border-cafe-300 bg-white text-cafe-900 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <button onclick="updateQuantity('${recipe.id}', 1)" class="w-9 h-9 rounded-xl bg-cafe-800 hover:bg-cafe-900 active:scale-95 text-white font-bold flex items-center justify-center transition cursor-pointer" aria-label="เพิ่มจำนวน">
+                                <i class="fa-solid fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 6. QUANTITY UPDATES & REAL-TIME CALCULATION
+        function updateQuantity(recipeId, delta) {
+            const current = quantities[recipeId] || 0;
+            const next = Math.max(0, current + delta);
+            quantities[recipeId] = next;
+            
+            const inputEl = document.getElementById(`input-${recipeId}`);
+            if (inputEl) inputEl.value = next;
+            
+            updateCardHighlight(recipeId, next);
+            calculateAndRenderSummary();
+        }
+
+        function setQuantityDirect(recipeId, val) {
+            let parsed = parseInt(val, 10);
+            if (isNaN(parsed) || parsed < 0) parsed = 0;
+            quantities[recipeId] = parsed;
+            
+            updateCardHighlight(recipeId, parsed);
+            calculateAndRenderSummary();
+        }
+
+        function updateCardHighlight(recipeId, qty) {
+            const card = document.getElementById(`card-${recipeId}`);
+            if (!card) return;
+            if (qty > 0) {
+                card.className = 'rounded-2xl p-4 transition-all duration-200 border bg-amber-50/80 border-amber-500 shadow-md ring-1 ring-amber-500/30';
+            } else {
+                card.className = 'rounded-2xl p-4 transition-all duration-200 border bg-white border-cafe-200 hover:border-cafe-300 shadow-xs';
+            }
+        }
+
+        function resetAllQuantities() {
+            RECIPES.forEach(r => {
+                quantities[r.id] = 0;
+                const inputEl = document.getElementById(`input-${r.id}`);
+                if (inputEl) inputEl.value = 0;
+                updateCardHighlight(r.id, 0);
+            });
+            calculateAndRenderSummary();
+            showToast('ล้างจำนวนการผลิตทั้งหมดเรียบร้อยแล้ว', 'info');
+        }
+
+        // Core calculation engine
+        function computeTotals(qtyMap) {
+            let totalBottles = 0;
+            const activeMenus = [];
+            const ingredientTotals = {}; // key: "name|unit" -> { name, unit, group, total }
+
+            RECIPES.forEach(recipe => {
+                const count = qtyMap[recipe.id] || 0;
+                if (count > 0) {
+                    totalBottles += count;
+                    activeMenus.push({
+                        id: recipe.id,
+                        name: recipe.name,
+                        count: count,
+                        unitLabel: recipe.unitLabel
+                    });
+
+                    recipe.ingredients.forEach(ing => {
+                        const key = `${ing.name}|${ing.unit}`;
+                        if (!ingredientTotals[key]) {
+                            ingredientTotals[key] = {
+                                name: ing.name,
+                                unit: ing.unit,
+                                group: ing.group,
+                                total: 0
+                            };
+                        }
+                        // Avoid floating point precision issues
+                        ingredientTotals[key].total = Math.round((ingredientTotals[key].total + (ing.amount * count)) * 10000) / 10000;
+                    });
+                }
+            });
+
+            return {
+                totalBottles,
+                activeMenus,
+                ingredientsList: Object.values(ingredientTotals)
+            };
+        }
+
+        function calculateAndRenderSummary() {
+            const { totalBottles, ingredientsList } = computeTotals(quantities);
+            document.getElementById('totalBottlesBadge').textContent = `${totalBottles.toLocaleString()} หน่วย`;
+
+            const container = document.getElementById('ingredientSummaryContainer');
+            if (ingredientsList.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-cafe-400">
+                        <i class="fa-solid fa-mug-hot text-4xl mb-2 opacity-40"></i>
+                        <p class="text-sm font-medium text-cafe-600">ยังไม่มีรายการผลิต</p>
+                        <p class="text-xs mt-1">กรุณาเพิ่มจำนวนขวดที่เมนูด้านซ้าย</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group ingredients by category
+            const groupsOrder = ['เมล็ดกาแฟ / ใบชา / ผง', 'นมและไซรัป', 'ผลไม้ / น้ำผลไม้'];
+            const grouped = {};
+            groupsOrder.forEach(g => grouped[g] = []);
+
+            ingredientsList.forEach(item => {
+                if (!grouped[item.group]) grouped[item.group] = [];
+                grouped[item.group].push(item);
+            });
+
+            let html = '';
+            groupsOrder.forEach(groupName => {
+                const items = grouped[groupName];
+                if (items && items.length > 0) {
+                    html += `
+                        <div class="space-y-2">
+                            <h5 class="text-xs font-bold uppercase tracking-wider text-cafe-500 border-b border-cafe-100 pb-1">
+                                ${groupName}
+                            </h5>
+                            <div class="space-y-1.5">
+                                ${items.map(item => `
+                                    <div class="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-cafe-50/70 hover:bg-cafe-100/70 transition">
+                                        <span class="text-sm font-medium text-cafe-900">${item.name}</span>
+                                        <div class="text-right">
+                                            <span class="text-base font-bold text-amber-800">${formatNumber(item.total)}</span>
+                                            <span class="text-xs text-cafe-600 ml-1">${item.unit}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            container.innerHTML = html;
+        }
+
+        function formatNumber(num) {
+            // Format up to 2 decimal places, stripping unnecessary trailing .00 if integer
+            return Number(num).toLocaleString('th-TH', {
+                minimumFractionDigits: Number.isInteger(num) ? 0 : 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // 7. SAVE RECORD TO GOOGLE SHEETS & LOCAL STORAGE
+        async function saveProductionRecord() {
+            const { totalBottles, activeMenus, ingredientsList } = computeTotals(quantities);
+            if (totalBottles === 0) {
+                showToast('กรุณาระบุจำนวนขวดที่ต้องการผลิตอย่างน้อย 1 รายการ', 'error');
+                return;
+            }
+
+            const recorder = document.getElementById('recorderName').value.trim() || 'ไม่ระบุชื่อ';
+            const note = document.getElementById('batchNote').value.trim() || '-';
+            const now = new Date();
+            const timestampStr = now.toLocaleString('th-TH', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            const recordId = 'REC-' + now.getTime().toString().slice(-6);
+
+            const recordObj = {
+                id: recordId,
+                timestamp: timestampStr,
+                recorder: recorder,
+                note: note,
+                totalBottles: totalBottles,
+                menusJson: JSON.stringify(activeMenus),
+                ingredientsJson: JSON.stringify(ingredientsList),
+                source: 'Local Storage'
+            };
+
+            const btn = document.getElementById('btnSaveRecord');
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>กำลังบันทึก...</span>';
+
+            // Always save backup in LocalStorage first
+            saveToLocalStorage(recordObj);
+
+            const scriptUrl = localStorage.getItem(STORAGE_KEY_URL);
+            if (scriptUrl) {
+                try {
+                    // Use text/plain to avoid CORS preflight issues with Google Apps Script
+                    const response = await fetch(scriptUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(recordObj)
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        showToast('บันทึกข้อมูลลง Google Sheets สำเร็จเรียบร้อย!', 'success');
+                    } else {
+                        showToast('บันทึกลงเครื่องแล้ว แต่ Google Sheets แจ้งเตือน: ' + result.message, 'warning');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast('บันทึกลงเครื่องแล้ว (ไม่สามารถเชื่อมต่อ Google Sheets ได้ในขณะนี้)', 'warning');
+                }
+            } else {
+                showToast('บันทึกข้อมูลลงหน่วยความจำในเครื่อง (Local Storage) สำเร็จ!', 'success');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
+
+        function saveToLocalStorage(record) {
+            try {
+                const existing = JSON.parse(localStorage.getItem(STORAGE_KEY_RECORDS) || '[]');
+                existing.unshift(record);
+                // Keep latest 100 records in local storage
+                if (existing.length > 100) existing.length = 100;
+                localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(existing));
+            } catch (e) {
+                console.error('LocalStorage save error:', e);
+            }
+        }
+
+        // 8. HISTORY FETCHING & RENDERING
+        async function fetchHistoryData() {
+            const loadingEl = document.getElementById('historyLoadingState');
+            const emptyEl = document.getElementById('historyEmptyState');
+            const tableWrapper = document.getElementById('historyTableWrapper');
+            const refreshIcon = document.getElementById('refreshIcon');
+
+            loadingEl.classList.remove('hidden');
+            emptyEl.classList.add('hidden');
+            tableWrapper.classList.add('hidden');
+            refreshIcon.classList.add('fa-spin');
+
+            const localData = JSON.parse(localStorage.getItem(STORAGE_KEY_RECORDS) || '[]');
+            const scriptUrl = localStorage.getItem(STORAGE_KEY_URL);
+
+            let combinedRecords = [...localData];
+
+            if (scriptUrl) {
+                try {
+                    const res = await fetch(scriptUrl);
+                    const json = await res.json();
+                    if (json.status === 'success' && Array.isArray(json.data)) {
+                        // Merge Google Sheets data (prioritize sheet records, deduplicate by ID)
+                        const sheetMap = new Map();
+                        json.data.forEach(item => sheetMap.set(item.id, item));
+                        localData.forEach(item => {
+                            if (!sheetMap.has(item.id)) {
+                                sheetMap.set(item.id, item);
+                            }
+                        });
+                        combinedRecords = Array.from(sheetMap.values());
+                    }
+                } catch (err) {
+                    console.error('Fetch Google Sheets error:', err);
+                    showToast('โหลดข้อมูลจาก Google Sheets ไม่สำเร็จ กำลังแสดงข้อมูลจากเครื่อง', 'warning');
+                }
+            }
+
+            historyRecords = combinedRecords;
+            loadingEl.classList.add('hidden');
+            refreshIcon.classList.remove('fa-spin');
+            renderHistoryTable(historyRecords);
+        }
+
+        function filterHistory() {
+            const query = document.getElementById('historySearchInput').value.toLowerCase().trim();
+            if (!query) {
+                renderHistoryTable(historyRecords);
+                return;
+            }
+            const filtered = historyRecords.filter(r => 
+                (r.timestamp && r.timestamp.toLowerCase().includes(query)) ||
+                (r.recorder && r.recorder.toLowerCase().includes(query)) ||
+                (r.note && r.note.toLowerCase().includes(query)) ||
+                (r.id && r.id.toLowerCase().includes(query))
+            );
+            renderHistoryTable(filtered);
+        }
+
+        function renderHistoryTable(records) {
+            const tbody = document.getElementById('historyTableBody');
+            const emptyEl = document.getElementById('historyEmptyState');
+            const tableWrapper = document.getElementById('historyTableWrapper');
+
+            if (!records || records.length === 0) {
+                emptyEl.classList.remove('hidden');
+                tableWrapper.classList.add('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            tableWrapper.classList.remove('hidden');
+
+            tbody.innerHTML = records.map((rec, index) => {
+                const isCloud = rec.source === 'Google Sheets';
+                return `
+                    <tr class="hover:bg-cafe-50/80 transition">
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <div class="font-semibold text-cafe-900">${rec.timestamp}</div>
+                            <div class="text-xs text-cafe-400 font-mono">${rec.id}</div>
+                        </td>
+                        <td class="py-3.5 px-4 font-medium text-cafe-800">${rec.recorder}</td>
+                        <td class="py-3.5 px-4 text-cafe-600">${rec.note || '-'}</td>
+                        <td class="py-3.5 px-4 text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
+                                ${Number(rec.totalBottles).toLocaleString()} หน่วย
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            ${isCloud 
+                                ? '<span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200"><i class="fa-solid fa-cloud"></i> Google Sheets</span>'
+                                : '<span class="inline-flex items-center gap-1 text-xs font-medium text-cafe-600 bg-cafe-100 px-2 py-1 rounded-lg"><i class="fa-solid fa-laptop"></i> ในเครื่อง</span>'
+                            }
+                        </td>
+                        <td class="py-3.5 px-4 text-right whitespace-nowrap space-x-1.5">
+                            <button onclick="openDetailModal(${index})" class="px-3 py-1.5 rounded-lg bg-cafe-100 hover:bg-cafe-200 text-cafe-800 text-xs font-semibold transition">
+                                <i class="fa-solid fa-eye mr-1"></i>ดูรายละเอียด
+                            </button>
+                            <button onclick="printHistoryRecord(${index})" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition">
+                                <i class="fa-solid fa-print mr-1"></i>พิมพ์
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 9. HISTORY MODAL
+        function openDetailModal(index) {
+            const rec = historyRecords[index];
+            if (!rec) return;
+
+            let menus = [];
+            let ingredients = [];
+            try {
+                menus = typeof rec.menusJson === 'string' ? JSON.parse(rec.menusJson) : rec.menusJson;
+                ingredients = typeof rec.ingredientsJson === 'string' ? JSON.parse(rec.ingredientsJson) : rec.ingredientsJson;
+            } catch (e) {
+                console.error('JSON Parse error in modal:', e);
+            }
+
+            document.getElementById('modalSubtitle').textContent = `รหัส: ${rec.id} | วันที่: ${rec.timestamp} | ผู้บันทึก: ${rec.recorder}`;
+            
+            const body = document.getElementById('modalBodyContent');
+            body.innerHTML = `
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-cream-100 p-3.5 rounded-xl border border-cafe-200 text-sm">
+                    <div>
+                        <span class="text-xs text-cafe-500 block">ผู้บันทึก</span>
+                        <span class="font-bold text-cafe-900">${rec.recorder}</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-cafe-500 block">รอบ / หมายเหตุ</span>
+                        <span class="font-bold text-cafe-900">${rec.note || '-'}</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-cafe-500 block">ยอดผลิตรวม</span>
+                        <span class="font-bold text-amber-700">${Number(rec.totalBottles).toLocaleString()} หน่วย</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-sm text-cafe-900 mb-2">รายการเมนูที่สั่งผลิต</h4>
+                    <div class="border border-cafe-200 rounded-xl overflow-hidden">
+                        <table class="w-full text-sm">
+                            <thead class="bg-cafe-100 text-cafe-800 text-xs">
+                                <tr>
+                                    <th class="py-2 px-3 text-left">ชื่อเมนู</th>
+                                    <th class="py-2 px-3 text-right">จำนวน</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-cafe-100">
+                                ${menus.map(m => `
+                                    <tr>
+                                        <td class="py-2 px-3">${m.name}</td>
+                                        <td class="py-2 px-3 text-right font-semibold">${m.count} ${m.unitLabel || 'ขวด'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-sm text-cafe-900 mb-2">สรุปวัตถุดิบที่ต้องเบิกใช้</h4>
+                    <div class="border border-cafe-200 rounded-xl overflow-hidden">
+                        <table class="w-full text-sm">
+                            <thead class="bg-cafe-100 text-cafe-800 text-xs">
+                                <tr>
+                                    <th class="py-2 px-3 text-left">วัตถุดิบ</th>
+                                    <th class="py-2 px-3 text-right">ปริมาณสุทธิ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-cafe-100">
+                                ${ingredients.map(i => `
+                                    <tr>
+                                        <td class="py-2 px-3">${i.name}</td>
+                                        <td class="py-2 px-3 text-right font-bold text-amber-800">${formatNumber(i.total)} ${i.unit}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modalPrintBtn').onclick = () => printHistoryRecord(index);
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        // 10. PRINT REPORT ENGINE (A4 MANAGER REPORT)
+        function prepareAndPrintCurrent() {
+            const { totalBottles, activeMenus, ingredientsList } = computeTotals(quantities);
+            if (totalBottles === 0) {
+                showToast('กรุณาระบุจำนวนขวดที่ต้องการผลิตก่อนพิมพ์รายงาน', 'error');
+                return;
+            }
+
+            const recorder = document.getElementById('recorderName').value.trim() || 'ไม่ระบุชื่อ';
+            const note = document.getElementById('batchNote').value.trim() || '-';
+            const now = new Date();
+            const timestampStr = now.toLocaleString('th-TH', {
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            const docId = 'RPT-' + now.getTime().toString().slice(-6);
+
+            renderPrintTemplate({
+                docId,
+                timestamp: timestampStr,
+                recorder,
+                note,
+                totalBottles,
+                menus: activeMenus,
+                ingredients: ingredientsList
+            });
+
+            window.print();
+        }
+
+        function printHistoryRecord(index) {
+            const rec = historyRecords[index];
+            if (!rec) return;
+
+            let menus = [];
+            let ingredients = [];
+            try {
+                menus = typeof rec.menusJson === 'string' ? JSON.parse(rec.menusJson) : rec.menusJson;
+                ingredients = typeof rec.ingredientsJson === 'string' ? JSON.parse(rec.ingredientsJson) : rec.ingredientsJson;
+            } catch (e) {}
+
+            renderPrintTemplate({
+                docId: rec.id,
+                timestamp: rec.timestamp,
+                recorder: rec.recorder,
+                note: rec.note || '-',
+                totalBottles: rec.totalBottles,
+                menus,
+                ingredients
+            });
+
+            window.print();
+        }
+
+        function renderPrintTemplate(data) {
+            document.getElementById('printDate').textContent = data.timestamp;
+            document.getElementById('printDocId').textContent = data.docId;
+            document.getElementById('printRecorder').textContent = data.recorder;
+            document.getElementById('printNote').textContent = data.note;
+            document.getElementById('printTotalBottles').textContent = `${Number(data.totalBottles).toLocaleString()} หน่วย`;
+            document.getElementById('printSignRecorder').textContent = data.recorder;
+
+            // Menus Table
+            const menusTbody = document.getElementById('printMenusTbody');
+            menusTbody.innerHTML = data.menus.map((m, idx) => `
+                <tr>
+                    <td class="border border-gray-400 py-1.5 px-3 text-center">${idx + 1}</td>
+                    <td class="border border-gray-400 py-1.5 px-3 font-medium">${m.name}</td>
+                    <td class="border border-gray-400 py-1.5 px-3 text-right font-bold">${Number(m.count).toLocaleString()}</td>
+                    <td class="border border-gray-400 py-1.5 px-3 text-center">${m.unitLabel || 'ขวด'}</td>
+                </tr>
+            `).join('');
+
+            // Ingredients Table
+            const ingTbody = document.getElementById('printIngredientsTbody');
+            ingTbody.innerHTML = data.ingredients.map((ing, idx) => `
+                <tr>
+                    <td class="border border-gray-400 py-1.5 px-3 text-center">${idx + 1}</td>
+                    <td class="border border-gray-400 py-1.5 px-3 text-gray-700">${ing.group || '-'}</td>
+                    <td class="border border-gray-400 py-1.5 px-3 font-medium">${ing.name}</td>
+                    <td class="border border-gray-400 py-1.5 px-3 text-right font-bold">${formatNumber(ing.total)}</td>
+                    <td class="border border-gray-400 py-1.5 px-3 text-center">${ing.unit}</td>
+                    <td class="border border-gray-400 py-1.5 px-3 text-center"><span class="inline-block w-4 h-4 border border-gray-600"></span></td>
+                </tr>
+            `).join('');
+        }
+
+        // 11. SETTINGS & UTILITIES
+        function saveGoogleScriptUrl() {
+            const url = document.getElementById('googleScriptUrlInput').value.trim();
+            if (url && !url.startsWith('https://script.google.com/')) {
+                showToast('รูปแบบ URL ไม่ถูกต้อง ควรขึ้นต้นด้วย https://script.google.com/', 'error');
+                return;
+            }
+            localStorage.setItem(STORAGE_KEY_URL, url);
+            updateConnectionStatusUI(url);
+            showToast(url ? 'บันทึกการเชื่อมต่อ Google Sheets เรียบร้อย!' : 'เปลี่ยนเป็นโหมด Local Storage แล้ว', 'success');
+        }
+
+        function clearGoogleScriptUrl() {
+            document.getElementById('googleScriptUrlInput').value = '';
+            localStorage.removeItem(STORAGE_KEY_URL);
+            updateConnectionStatusUI('');
+            showToast('ล้างการเชื่อมต่อ Google Sheets แล้ว', 'info');
+        }
+
+        function updateConnectionStatusUI(url) {
+            const dotMobile = document.getElementById('statusDotMobile');
+            const textMobile = document.getElementById('statusTextMobile');
+            const dotDesktop = document.getElementById('statusDotDesktop');
+            const textDesktop = document.getElementById('statusTextDesktop');
+
+            if (url) {
+                dotMobile.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                textMobile.textContent = 'Google Sheets';
+                dotDesktop.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+                textDesktop.textContent = 'เชื่อมต่อ Google Sheets แล้ว';
+            } else {
+                dotMobile.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+                textMobile.textContent = 'โหมดออฟไลน์';
+                dotDesktop.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+                textDesktop.textContent = 'Local Storage (ในเครื่อง)';
+            }
+        }
+
+        function copyAppsScriptCode() {
+            const copyText = document.getElementById('appsScriptCodeBox');
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+            showToast('คัดลอกโค้ด Google Apps Script ลงคลิปบอร์ดแล้ว!', 'success');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const styles = {
+                success: 'bg-emerald-800 text-white border-emerald-600',
+                error: 'bg-red-800 text-white border-red-600',
+                warning: 'bg-amber-700 text-white border-amber-500',
+                info: 'bg-cafe-800 text-white border-cafe-600'
+            };
+            const icons = {
+                success: 'fa-circle-check',
+                error: 'fa-circle-exclamation',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info'
+            };
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${styles[type] || styles.info}`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icons[type] || icons.info} text-base shrink-0"></i>
+                <span class="flex-1">${message}</span>
+            `;
+
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
